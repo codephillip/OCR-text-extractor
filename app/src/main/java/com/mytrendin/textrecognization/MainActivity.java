@@ -4,11 +4,6 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -31,7 +26,24 @@ import com.google.android.gms.vision.text.TextRecognizer;
 
 import java.io.File;
 
+import static com.mytrendin.textrecognization.BitmapEditor.calculateBrightness;
+import static com.mytrendin.textrecognization.BitmapEditor.changeBitmapContrastBrightness;
 
+/**
+ * Using Google Mobile Vision api to extract data from an image(Uganda National ID).
+ *
+ * STEPS:
+ * + Take picture
+ * + Enhance picture(adjust contrast and brightness)
+ * + Extract text from image
+ * + Identify the text
+ * + Log the results :)
+ *
+ * CREDIT
+ * https://www.mytrendin.com/read-text-using-mobile-vision-text-recognization-api-android/
+ * https://gist.github.com/bodyflex/b1d772caf76cdc0c11e2
+ * https://stackoverflow.com/questions/12891520/how-to-programmatically-change-contrast-of-a-bitmap-in-android
+ * */
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "SCANNER";
     Button button;
@@ -114,11 +126,18 @@ public class MainActivity extends AppCompatActivity {
                 Log.i("Hello", "" + imageuri);
                 Scanner scanner = new Scanner();
                 Bitmap bitmap = scanner.decodeBitmapUri(MainActivity.this, imageuri);
-                Log.d(TAG, "onActivityResult: BRIGHTNESS: " + calculateBrightness(bitmap));
+                int bitmapBrightness = calculateBrightness(bitmap);
+                Log.d(TAG, "onActivityResult: BRIGHTNESS: " + bitmapBrightness);
 
-                // used in dim light
-//                bitmap = changeBitmapContrastBrightness(bitmap, 2f, 1f);
-                bitmap = changeBitmapContrastBrightness(bitmap, 2f, 1f);
+                // todo testing. remove this
+                bitmap = changeBitmapContrastBrightness(bitmap, 3, -100);
+
+                // brightness between 118 and 230 and the most optimal for extracting the text
+                // increase brightness and contrast when image is not clear
+//                if (bitmapBrightness < 118) {
+//                    bitmap = changeBitmapContrastBrightness(bitmap, 2f, 1f);
+//                }
+
                 Log.d(TAG, "onActivityResult: BRIGHTNESS: " + calculateBrightness(bitmap));
                 imageView.setImageBitmap(bitmap);
 
@@ -152,22 +171,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public static Bitmap changeBitmapContrastBrightness(Bitmap bmp, float contrast, float brightness) {
-        ColorMatrix cm = new ColorMatrix(new float[]{
-                contrast, 0, 0, 0, brightness,
-                0, contrast, 0, 0, brightness,
-                0, 0, contrast, 0, brightness,
-                0, 0, 0, 1, 0
-        });
-
-        Bitmap enchancedBitmap = Bitmap.createBitmap(bmp.getWidth(), bmp.getHeight(), bmp.getConfig());
-        Canvas canvas = new Canvas(enchancedBitmap);
-        Paint paint = new Paint();
-        paint.setColorFilter(new ColorMatrixColorFilter(cm));
-        canvas.drawBitmap(bmp, 0, 0, paint);
-        return enchancedBitmap;
-    }
-
     public void takePicture() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         File photo = new File(Environment.getExternalStorageDirectory(), "picture.jpg");
@@ -190,28 +193,5 @@ public class MainActivity extends AppCompatActivity {
         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
         mediaScanIntent.setData(imageuri);
         this.sendBroadcast(mediaScanIntent);
-    }
-
-    public int calculateBrightnessEstimate(android.graphics.Bitmap bitmap, int pixelSpacing) {
-        int R = 0;
-        int G = 0;
-        int B = 0;
-        int height = bitmap.getHeight();
-        int width = bitmap.getWidth();
-        int n = 0;
-        int[] pixels = new int[width * height];
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
-        for (int i = 0; i < pixels.length; i += pixelSpacing) {
-            int color = pixels[i];
-            R += Color.red(color);
-            G += Color.green(color);
-            B += Color.blue(color);
-            n++;
-        }
-        return (R + B + G) / (n * 3);
-    }
-
-    public int calculateBrightness(android.graphics.Bitmap bitmap) {
-        return calculateBrightnessEstimate(bitmap, 1);
     }
 }
